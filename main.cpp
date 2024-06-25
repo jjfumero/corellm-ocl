@@ -12,7 +12,7 @@ using namespace std;
 #endif
 
 const int PLATFORM = 1;
-const int WORK_GROUP_SIZE = 1024;
+const int WORK_GROUP_SIZE = 4;
 
 // Variables
 size_t data_size;
@@ -223,7 +223,7 @@ int main(int argc, char** argv) {
     cout << "LLM Llama3 Core Math Library" << endl;
     initOpenCLPlatformAndKernels();
 
-    const long elements = 4096;
+    const long elements = 4;
 
     cl_kernel kernel1 = createKernel("rmsnormReduction");
     cl_kernel kernel2 = createKernel("rmsnormNormalization");
@@ -234,8 +234,8 @@ int main(int argc, char** argv) {
     data_size = sizeof(float) * elements;
     hostDataInitialization(data_size);
     for (int i = 0; i < elements; i++) {
-        hA[i] = 0.1;
-        hB[i] = 0.2;
+        hA[i] = i;
+        hB[i] = i + 1;
     }
     allocateBuffersOnGPU(data_size);
 
