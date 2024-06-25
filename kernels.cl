@@ -13,13 +13,12 @@ __kernel void rmsnormReduction(__global float *partialSums, __global float *x, _
     localSums[localIdx] = x[idx];
 
     localSums[localIdx] = localSums[localIdx] * localSums[localIdx];
-    barrier(CLK_LOCAL_MEM_FENCE);
 
     for (int stride = groupSize / 2; stride > 0; stride /= 2) {
+        barrier(CLK_LOCAL_MEM_FENCE);
         if (localIdx < stride) {
             localSums[localIdx] += localSums[localIdx + stride];
         }
-        barrier(CLK_LOCAL_MEM_FENCE);
     }
     if (localIdx == 0) {
         partialSums[groupID] = localSums[0];
