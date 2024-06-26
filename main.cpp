@@ -2,6 +2,7 @@
 #include <string>
 #include <stdio.h>
 #include <stdlib.h>
+#include <math.h>
 
 using namespace std;
 
@@ -207,6 +208,28 @@ cl_event runKernel1(cl_kernel kernel, ulong elements) {
     return kernelEvent;
 }
 
+cl_event runKernel2(cl_kernel kernel, ulong elements, float ss) {
+    cl_int status;
+    status  = clSetKernelArg(kernel, 0, sizeof(cl_mem), &dA);
+    status |= clSetKernelArg(kernel, 1, sizeof(cl_mem), &dB);
+    status |= clSetKernelArg(kernel, 2, sizeof(cl_mem), &dC);
+    status |= clSetKernelArg(kernel, 3, sizeof(float), &ss);
+    if (status != CL_SUCCESS) {
+        cout << "Error in clSetKernelArg" << endl;
+        return nullptr;
+    }
+
+    size_t globalWorkSize[] = {elements, 1, 1};
+    cl_event kernelEvent;
+    status = clEnqueueNDRangeKernel(commandQueue, kernel, 1, nullptr, globalWorkSize, nullptr, 0, nullptr, &kernelEvent);
+    if (status != CL_SUCCESS) {
+        cout << "Error clEnqueueNDRangeKernel: "  << status << endl;
+        return nullptr;
+    }
+
+    return kernelEvent;
+}
+
 cl_event read(cl_mem devVar, float* hostVar, int data_size, cl_event kernelEvent) {
     // Read result back from device to host
     cl_event waitEventsRead[] = {kernelEvent};
@@ -223,7 +246,7 @@ int main(int argc, char** argv) {
     cout << "LLM Llama3 Core Math Library" << endl;
     initOpenCLPlatformAndKernels();
 
-    const long elements = 4;
+    const long elements = 4096;
 
     cl_kernel kernel1 = createKernel("rmsnormReduction");
     cl_kernel kernel2 = createKernel("rmsnormNormalization");
@@ -234,8 +257,8 @@ int main(int argc, char** argv) {
     data_size = sizeof(float) * elements;
     hostDataInitialization(data_size);
     for (int i = 0; i < elements; i++) {
-        hA[i] = i;
-        hB[i] = i + 1;
+        hA[i] = 0;
+        hB[i] = 0.1;
     }
     allocateBuffersOnGPU(data_size);
 
@@ -245,8 +268,21 @@ int main(int argc, char** argv) {
     cl_event kernelEvent = runKernel1(kernel1, elements);
     read(dA, hA, data_size, kernelEvent);
 
-    for (int i = 0; i < elements; i++) {
-        cout << hA[i] << " ";
+    int groups = elements / WORK_GROUP_SIZE;
+    for (int i = 0; i < groups; i++) {
+        hA[0] += hA[i];
+    }
+    int ss = hA[0] + 1e-5;
+    ss = 1.0 / sqrt(ss);
+
+    writeBuffer(dA, hA, data_size);
+    writeBuffer(dB, hB, data_size);
+
+    kernelEvent = runKernel2(kernel2, elements, ss);
+    read(dA, hA, data_size, kernelEvent);
+
+    for (int i = 0; i < groups; i++) {
+        cout << hA[0];
     }
 
     return 0;
