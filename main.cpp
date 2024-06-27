@@ -16,6 +16,7 @@ using namespace std;
     #include <CL/cl.h>
 #endif
 
+// Configuration
 const int PLATFORM = 1;
 const long elements = 4096;
 const int WORK_GROUP_SIZE = 1024;
