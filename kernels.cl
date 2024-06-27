@@ -33,7 +33,7 @@ __kernel void rmsnormNormalization(__global float *output, __global float *x, __
 // ===============================================================
 // Kernels: softmax
 // ===============================================================
-__kernel void softMaxReduction(__global float *partial, __global float *x, __local float* locals) {
+__kernel void softMaxReduction(__global float *partialMax, __global float *x, __local float* locals) {
     uint idx = get_global_id(0);
     uint localIdx = get_local_id(0);
     uint groupSize = get_local_size(0);
@@ -42,46 +42,46 @@ __kernel void softMaxReduction(__global float *partial, __global float *x, __loc
     for (int stride = groupSize / 2; stride > 0; stride /= 2) {
         barrier(CLK_LOCAL_MEM_FENCE);
         if (localIdx < stride) {
-            if (locals[localIdx] > locals[localIdx + stride]) {
+            if (locals[localIdx] < locals[localIdx + stride]) {
                 locals[localIdx] = locals[localIdx + stride];
             }
         }
     }
     if (localIdx == 0) {
-        partial[get_group_id(0)] = locals[0];
+        partialMax[get_group_id(0)] = locals[0];
     }
 }
 
-__kernel void softMaxExpAndSum(__global float *partial, __global float *x, __local float* locals, const float maxValue) {
+__kernel void softMaxExpAndSum(__global float *partialSums, __global float *x, __local float* locals, const float maxValue) {
     uint idx = get_global_id(0);
     uint localIdx = get_local_id(0);
     uint groupSize = get_local_size(0);
     locals[localIdx] = x[idx];
 
-    x[idx] = exp(x[idx] - maxValue);
+    // x.set(i, TornadoMath.exp(x.get(i) - max_val));
+    locals[idx] = exp(locals[idx] - maxValue);
 
     for (int stride = groupSize / 2; stride > 0; stride /= 2) {
         barrier(CLK_LOCAL_MEM_FENCE);
         if (localIdx < stride) {
-            if (locals[localIdx] > locals[localIdx + stride]) {
-                locals[localIdx] += locals[localIdx + stride];
-            }
+            locals[localIdx] += locals[localIdx + stride];
         }
     }
+
     if (localIdx == 0) {
-        partial[get_group_id(0)] = locals[0];
+        partialSums[get_group_id(0)] = locals[0];
     }
 }
 
 __kernel void softMaxNormalization(__global float *x, const float sum) {
     uint idx = get_global_id(0);
-	x[idx] = (x[idx] / sum);
+	x[idx] = x[idx] / sum;
 }
 
 // ===============================================================
 // Kernels: matMul
 // ===============================================================
-__kernel void matMul(__global float *xout, __global float *x,  __global float *w, const int n) {
+__kernel void matMul(__global float *xout, __global float *x,  __global float *w, const long n) {
     uint idx = get_global_id(0);
     float val = 0.0;
     for (int j = 0; j < n; j++) {
