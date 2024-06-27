@@ -1,5 +1,5 @@
 // ===============================================================
-// Llama3 core OpenCL Kernels
+// Llama2 core OpenCL Kernels
 // ===============================================================
 
 // ===============================================================
@@ -88,10 +88,4 @@ __kernel void matMul(__global float *xout, __global float *x,  __global float *w
         val += w[idx * n + j] * x[j];
     }
 	xout[idx] = val;
-}
-
-// testing
-__kernel void test(__global float *output, __global float *x, __local float* localSums) {
-    uint idx = get_global_id(0);
-	output[idx] = x[idx] + 100;
 }
