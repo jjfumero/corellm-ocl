@@ -8,5 +8,4 @@ set (CMAKE_CXX_FLAGS "-lOpenCL")
 configure_file(kernels.cl ${CMAKE_BINARY_DIR}/kernels.cl)
 
 add_executable(corellvms main.cpp
-        OCLCompute.cpp
-        OCLCompute.h)
+)
