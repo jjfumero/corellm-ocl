@@ -337,75 +337,68 @@ cl_event read(cl_mem devVar, float* hostVar, int data_size, cl_event kernelEvent
 
 
 void runRmsNorm(long elements, cl_kernel kernel1, cl_kernel kernel2) {
-    long data_size = elements * sizeof(float);
-    writeBuffer(dOutput, hOutput, data_size);
-    writeBuffer(dX, hX, data_size);
+    long dataSize = elements * sizeof(float);
+    writeBuffer(dOutput, hOutput, dataSize);
+    writeBuffer(dX, hX, dataSize);
 
     cl_event kernelEvent = runKernel1(kernel1, elements);
-    read(dOutput, hOutput, data_size, kernelEvent);
+    read(dOutput, hOutput, dataSize, kernelEvent);
 
-    int groups = elements / WORK_GROUP_SIZE;
-    for (int i = 0; i < groups; i++) {
+    int numGroups = elements / WORK_GROUP_SIZE;
+    for (int i = 0; i < numGroups; i++) {
         hOutput[0] += hOutput[i];
     }
-
     float ss = hOutput[0] + 1e-5;
     ss = 1.0 / sqrt(ss);
-
     cout << "SS: " << ss << endl;
 
-    writeBuffer(dOutput, hOutput, data_size);
-    writeBuffer(dX, hX, data_size);
-
-    for (int i = 0; i < elements; i++) {
-        hWeight[i] = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
-    }
-
-    writeBuffer(dWeight, hWeight, data_size);
+    writeBuffer(dOutput, hOutput, dataSize);
+    writeBuffer(dX, hX, dataSize);
+    writeBuffer(dWeight, hWeight, dataSize);
 
     kernelEvent = runKernel2(kernel2, elements, ss);
-    read(dOutput, hOutput, data_size, kernelEvent);
+    read(dOutput, hOutput, dataSize, kernelEvent);
 }
 
 void runSoftMax(const long elements, cl_kernel kernel1, cl_kernel kernel2, cl_kernel kernel3) {
-    long data_size = elements * sizeof(float);
-    writeBuffer(dOutput, hOutput, data_size);
-    writeBuffer(dX, hX, data_size);
+    long dataSize = elements * sizeof(float);
+    writeBuffer(dOutput, hOutput, dataSize);
+    writeBuffer(dX, hX, dataSize);
 
     cl_event kernelEvent = runKernel1(kernel1, elements);
-    read(dOutput, hOutput, data_size, kernelEvent);
+    read(dOutput, hOutput, dataSize, kernelEvent);
 
-    int groups = elements / WORK_GROUP_SIZE;
-    for (int i = 0; i < groups; i++) {
+    int numGroups = elements / WORK_GROUP_SIZE;
+    for (int i = 0; i < numGroups; i++) {
         if (hOutput[0] < hOutput[i]) {
             hOutput[0] = hOutput[i];
         }
     }
     float max = hOutput[0];
 
-    writeBuffer(dOutput, hOutput, data_size);
-    writeBuffer(dX, hX, data_size);
-    writeBuffer(dWeight, hWeight, data_size);
+    writeBuffer(dOutput, hOutput, dataSize);
+    writeBuffer(dX, hX, dataSize);
+    writeBuffer(dWeight, hWeight, dataSize);
 
     kernelEvent = runKernel4(kernel2, elements, max);
-    read(dOutput, hOutput, data_size, kernelEvent);
+    read(dOutput, hOutput, dataSize, kernelEvent);
 
-    for (int i = 1; i < groups; i++) {
+    for (int i = 1; i < numGroups; i++) {
         hOutput[0] += hOutput[i];
     }
     float sum = hOutput[0];
 
     kernelEvent = runKernel5(kernel3, elements, sum);
-    read(dX, hX, data_size, kernelEvent);
+    read(dX, hX, dataSize, kernelEvent);
 }
 
 void runMatMul(const long elements, cl_kernel kernel1) {
-    long data_size = elements * sizeof(float);
-    writeBuffer(dXout, hXout, data_size);
-    writeBuffer(dX, hX, data_size);
+    long dataSize = elements * sizeof(float);
+    writeBuffer(dXout, hXout, dataSize);
+    writeBuffer(dX, hX, dataSize);
     writeBuffer(dW, hW, sizeof(float) * elements * elements);
     cl_event kernelEvent = runKernel6(kernel1, elements);
-    read(dXout, hXout, data_size, kernelEvent);
+    read(dXout, hXout, dataSize, kernelEvent);
 }
 
 void free(const std::vector<cl_kernel>& kernels, const std::vector<cl_mem>& deviceObjects, const std::vector<void *>& hostObjects) {
@@ -428,6 +421,10 @@ void free(const std::vector<cl_kernel>& kernels, const std::vector<cl_mem>& devi
         free(object);
 }
 
+float randValue() {
+    return static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
+}
+
 /**
  * OpenCL program to accelerate the core LLM functions
  */
@@ -439,7 +436,11 @@ int main(int argc, char** argv) {
     hostDataInitialization(elements);
     for (int i = 0; i < elements; i++) {
         hOutput[i] = 0;
-        hX[i] = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
+        hX[i] = randValue();
+        hWeight[i] = randValue();
+        for (int j = 0; j < elements; j++) {
+            hW[i * elements + j] = randValue();
+        }
     }
 
     allocateBuffersOnGPU(elements);
