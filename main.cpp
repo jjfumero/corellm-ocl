@@ -16,24 +16,30 @@ using namespace std;
     #include <CL/cl.h>
 #endif
 
+// =============================
 // Configuration
+// =============================
 const int PLATFORM = 1;
 const long elements = 4096;
 const int WORK_GROUP_SIZE = 1024;
+// =============================
 
 // Variables
+// Host Objects
 float *hOutput;
 float *hX;
 float *hWeight;
 float *hXout;
 float *hW;
 
+// Device Memory Objects
 cl_mem dOutput;
 cl_mem dX;
 cl_mem dWeight;
 cl_mem dXout;
 cl_mem dW;
 
+// OpenCL env.
 cl_platform_id *platforms;
 cl_device_id *devices;
 cl_context context;
@@ -41,53 +47,41 @@ cl_command_queue commandQueue;
 cl_program program;
 
 char *readsource(const char *sourceFilename) {
-
     FILE *fp;
     int err;
     int size;
     char *source;
-
     fp = fopen(sourceFilename, "rb");
-
     if(fp == NULL) {
         printf("Could not open kernelPtr file: %s\n", sourceFilename);
         exit(-1);
     }
-
     err = fseek(fp, 0, SEEK_END);
-
     if(err != 0) {
         printf("Error seeking to end of file\n");
         exit(-1);
-
     }
     size = ftell(fp);
-
     if(size < 0) {
         printf("Error getting file position\n");
         exit(-1);
     }
-
     err = fseek(fp, 0, SEEK_SET);
     if(err != 0) {
         printf("Error seeking to start of file\n");
         exit(-1);
 
     }
-
     source = (char*)malloc(size+1);
-
     if(source == NULL) {
         printf("Error allocating %d bytes for the program source\n", size+1);
         exit(-1);
     }
-
     err = fread(source, 1, size, fp);
     if(err != size) {
         printf("only read %d bytes\n", err);
         exit(0);
     }
-
     source[size] = '\0';
     return source;
 }
@@ -469,5 +463,3 @@ int main(int argc, char** argv) {
 
     return 0;
 }
-
-
