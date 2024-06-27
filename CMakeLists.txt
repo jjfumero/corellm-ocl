@@ -7,5 +7,4 @@ set (CMAKE_CXX_FLAGS "-lOpenCL")
 # Add the kernelPtr files in the bin directory
 configure_file(kernels.cl ${CMAKE_BINARY_DIR}/kernels.cl)
 
-add_executable(corellvms main.cpp
-)
+add_executable(corellvms main.cpp)
