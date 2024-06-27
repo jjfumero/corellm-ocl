@@ -3,6 +3,7 @@
 
 #include <iostream>
 #include <string>
+#include <vector>
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
@@ -36,10 +37,7 @@ cl_platform_id *platforms;
 cl_device_id *devices;
 cl_context context;
 cl_command_queue commandQueue;
-cl_kernel kernelPtr;
 cl_program program;
-
-void runSoftMax(const long elements, cl_kernel pKernel, cl_kernel pKernel1, cl_kernel pKernel2);
 
 char *readsource(const char *sourceFilename) {
 
@@ -165,12 +163,12 @@ int initOpenCLPlatformAndKernels() {
 
 cl_kernel createKernel(const char* kernelName) {
     cl_int status;
-    kernelPtr = clCreateKernel(program, kernelName, &status);
+    cl_kernel kernel = clCreateKernel(program, kernelName, &status);
     if (status != CL_SUCCESS) {
         cout << "Error in clCreateKernel" << endl;
         return nullptr;
     }
-    return kernelPtr;
+    return kernel;
 }
 
 
@@ -409,6 +407,25 @@ void runMatMul(const long elements, cl_kernel kernel1) {
     read(dXout, hXout, data_size, kernelEvent);
 }
 
+void free(const std::vector<cl_kernel>& kernels, const std::vector<cl_mem>& deviceObjects, const std::vector<void *>& hostObjects) {
+
+    for (auto kernel: kernels)
+        clReleaseKernel(kernel);
+
+    clReleaseProgram(program);
+    clReleaseCommandQueue(commandQueue);
+
+    for (auto object: deviceObjects)
+        clReleaseMemObject(object);
+
+    clReleaseContext(context);
+    clReleaseContext(context);
+    free(platforms);
+    free(devices);
+
+    for (auto object: hostObjects)
+        free(object);
+}
 
 /**
  * OpenCL program to accelerate the core LLM functions
@@ -442,5 +459,13 @@ int main(int argc, char** argv) {
     cl_kernel kernel6 = createKernel("matMul");
     runMatMul(elements, kernel6);
 
+    // free environment
+    vector<cl_kernel> kernels = { kernel1, kernel2, kernel3, kernel4, kernel5, kernel6};
+    vector<cl_mem> deviceObjects = { dOutput, dX, dXout, dWeight, dW };
+    vector<void *> hostObjects = { hOutput, hX, hWeight, hXout, hW };
+    free(kernels, deviceObjects, hostObjects);
+
     return 0;
 }
+
+
