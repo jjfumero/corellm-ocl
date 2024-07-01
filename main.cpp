@@ -138,7 +138,6 @@ cl_kernel createKernel(const char* kernelName) {
     return kernel;
 }
 
-
 void hostDataInitialization(const long elements) {
     const long data_size = elements * sizeof(float);
     hOutput = static_cast<float *>(malloc(data_size));
@@ -307,7 +306,6 @@ cl_event read(const cl_mem dVar, float* hostVar, const int data_size, const cl_e
     }
     return readEvent;
 }
-
 
 void runRmsNorm(long elements, cl_kernel kernel1, cl_kernel kernel2) {
     long data_size = elements * sizeof(float);
