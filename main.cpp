@@ -61,16 +61,15 @@ string readSourceFile(const char *sourceFilename) {
 }
 
 int initOpenCLPlatformAndKernels() {
-    cl_int status;
     cl_uint numPlatforms = 0;
 
-    status = clGetPlatformIDs(0, NULL, &numPlatforms);
+    cl_int status = clGetPlatformIDs(0, NULL, &numPlatforms);
     if (numPlatforms == 0) {
         cout << "No OpenCL platform detected" << endl;
         return -1;
     }
 
-    platforms = (cl_platform_id*) malloc(numPlatforms*sizeof(cl_platform_id));
+    platforms = static_cast<cl_platform_id *>(malloc(numPlatforms * sizeof(cl_platform_id)));
     if (platforms == nullptr) {
         cout << "Malloc Platforms failed" << endl;
         return -1;
@@ -83,7 +82,7 @@ int initOpenCLPlatformAndKernels() {
     }
 
     cout << numPlatforms <<  " has been detected" << endl;
-    string platformName = "";
+    string platformName;
     for (int i = 0; i < numPlatforms; i++) {
         char buf[10000];
         cout << "Platform: " << i << endl;
@@ -112,7 +111,7 @@ int initOpenCLPlatformAndKernels() {
     }
 
     context = clCreateContext(NULL, numDevices, devices, NULL, NULL, &status);
-    if (context == NULL) {
+    if (context == nullptr) {
         cout << "Context is not NULL" << endl;
     }
 
@@ -132,7 +131,7 @@ int initOpenCLPlatformAndKernels() {
 
 cl_kernel createKernel(const char* kernelName) {
     cl_int status;
-    cl_kernel kernel = clCreateKernel(program, kernelName, &status);
+    const cl_kernel kernel = clCreateKernel(program, kernelName, &status);
     if (status != CL_SUCCESS) {
         cout << "Error in clCreateKernel" << endl;
         return nullptr;
