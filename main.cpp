@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <fstream>
 
 using namespace std;
 
@@ -20,7 +21,7 @@ using namespace std;
 // Configuration
 // =============================
 const int PLATFORM = 1;
-const long elements = 4096;
+const long ELEMENTS = 4096;
 const int WORK_GROUP_SIZE = 1024;
 // =============================
 
@@ -46,44 +47,17 @@ cl_context context;
 cl_command_queue commandQueue;
 cl_program program;
 
-char *readsource(const char *sourceFilename) {
-    FILE *fp;
-    int err;
-    int size;
-    char *source;
-    fp = fopen(sourceFilename, "rb");
-    if(fp == NULL) {
-        printf("Could not open kernelPtr file: %s\n", sourceFilename);
-        exit(-1);
+string readSourceFile(const char *sourceFilename) {
+    string kernelSource;
+    std::ifstream kernelsFile(sourceFilename);
+    if (kernelsFile.is_open()) {
+        while (kernelsFile) {
+            string line;
+            std::getline(kernelsFile, line);
+            kernelSource +=  line + '\n';
+        }
     }
-    err = fseek(fp, 0, SEEK_END);
-    if(err != 0) {
-        printf("Error seeking to end of file\n");
-        exit(-1);
-    }
-    size = ftell(fp);
-    if(size < 0) {
-        printf("Error getting file position\n");
-        exit(-1);
-    }
-    err = fseek(fp, 0, SEEK_SET);
-    if(err != 0) {
-        printf("Error seeking to start of file\n");
-        exit(-1);
-
-    }
-    source = (char*)malloc(size+1);
-    if(source == NULL) {
-        printf("Error allocating %d bytes for the program source\n", size+1);
-        exit(-1);
-    }
-    err = fread(source, 1, size, fp);
-    if(err != size) {
-        printf("only read %d bytes\n", err);
-        exit(0);
-    }
-    source[size] = '\0';
-    return source;
+    return kernelSource;
 }
 
 int initOpenCLPlatformAndKernels() {
@@ -149,7 +123,7 @@ int initOpenCLPlatformAndKernels() {
     }
 
     const char *sourceFile = "kernels.cl";
-    char *source = readsource(sourceFile);
+    string source = readSourceFile(sourceFile);
     program = clCreateProgramWithSource(context, 1, (const char**)&source, NULL, &status);
 
     cl_int buildErr = clBuildProgram(program, numDevices, devices, NULL, NULL, NULL);
@@ -427,33 +401,33 @@ int main(int argc, char** argv) {
     cout << "LLM Llama3 Core Math Library" << endl;
     initOpenCLPlatformAndKernels();
 
-    hostDataInitialization(elements);
-    for (int i = 0; i < elements; i++) {
+    hostDataInitialization(ELEMENTS);
+    for (int i = 0; i < ELEMENTS; i++) {
         hOutput[i] = 0;
         hX[i] = randValue();
         hWeight[i] = randValue();
-        for (int j = 0; j < elements; j++) {
-            hW[i * elements + j] = randValue();
+        for (int j = 0; j < ELEMENTS; j++) {
+            hW[i * ELEMENTS + j] = randValue();
         }
     }
 
-    allocateBuffersOnGPU(elements);
+    allocateBuffersOnGPU(ELEMENTS);
 
     // rmsNorm kernels
     cl_kernel kernel1 = createKernel("rmsnormReduction");
     cl_kernel kernel2 = createKernel("rmsnormNormalization");
 
-    runRmsNorm(elements, kernel1, kernel2);
+    runRmsNorm(ELEMENTS, kernel1, kernel2);
 
     // softMax Kernels
     cl_kernel kernel3 = createKernel("softMaxReduction");
     cl_kernel kernel4 = createKernel("softMaxExpAndSum");
     cl_kernel kernel5 = createKernel("softMaxNormalization");
-    runSoftMax(elements, kernel3, kernel4, kernel5);
+    runSoftMax(ELEMENTS, kernel3, kernel4, kernel5);
 
     // matMul
     cl_kernel kernel6 = createKernel("matMul");
-    runMatMul(elements, kernel6);
+    runMatMul(ELEMENTS, kernel6);
 
     // free environment
     vector<cl_kernel> kernels = { kernel1, kernel2, kernel3, kernel4, kernel5, kernel6};
