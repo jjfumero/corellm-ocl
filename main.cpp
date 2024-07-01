@@ -151,7 +151,7 @@ void hostDataInitialization(const long elements) {
 cl_int allocateBuffersOnGPU(const long elements) {
     long data_size = elements * sizeof(float);
     cl_int status;
-    dOutput = clCreateBuffer(context, CL_MEM_READ_WRITE, data_size, nullptr, &status);
+    dOutput = clCreateBuffer(context, CL_MEM_WRITE_ONLY, data_size, nullptr, &status);
     if (status != CL_SUCCESS) {
         cout << "Error in clCreateBuffer (dOutput)" << endl;
         return -1;
@@ -161,18 +161,18 @@ cl_int allocateBuffersOnGPU(const long elements) {
         cout << "Error in clCreateBuffer (dX)" << endl;
         return -1;
     }
-    dWeight = clCreateBuffer(context, CL_MEM_READ_WRITE, data_size, nullptr, &status);
+    dWeight = clCreateBuffer(context, CL_MEM_READ_ONLY, data_size, nullptr, &status);
     if (status != CL_SUCCESS) {
         cout << "Error in clCreateBuffer (dWeight)" << endl;
         return -1;
     }
-    dXout = clCreateBuffer(context, CL_MEM_READ_WRITE, data_size, nullptr, &status);
+    dXout = clCreateBuffer(context, CL_MEM_WRITE_ONLY, data_size, nullptr, &status);
     if (status != CL_SUCCESS) {
         cout << "Error in clCreateBuffer (dWeight)" << endl;
         return -1;
     }
     // Matrix
-    dW = clCreateBuffer(context, CL_MEM_READ_WRITE, elements * elements * sizeof(float), nullptr, &status);
+    dW = clCreateBuffer(context, CL_MEM_READ_ONLY, elements * elements * sizeof(float), nullptr, &status);
     if (status != CL_SUCCESS) {
         cout << "Error in clCreateBuffer (dW)" << endl;
         return -1;
