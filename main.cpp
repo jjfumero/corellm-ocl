@@ -4,14 +4,13 @@
 #include <iostream>
 #include <string>
 #include <vector>
-#include <stdio.h>
-#include <stdlib.h>
-#include <math.h>
+#include <cstdlib>
+#include <cmath>
 #include <fstream>
 
 using namespace std;
 
-#ifdef __APPLE
+#ifdef __APPLE__
     #include <OpenCL/cl.h>
 #else
     #include <CL/cl.h>
@@ -140,7 +139,7 @@ cl_kernel createKernel(const char* kernelName) {
 }
 
 
-void hostDataInitialization(long elements) {
+void hostDataInitialization(const long elements) {
     const long data_size = elements * sizeof(float);
     hOutput = static_cast<float *>(malloc(data_size));
     hX = static_cast<float *>(malloc(data_size));
@@ -149,15 +148,15 @@ void hostDataInitialization(long elements) {
     hW = static_cast<float *>(malloc(elements * elements * sizeof(float)));
 }
 
-cl_int allocateBuffersOnGPU(long elements) {
+cl_int allocateBuffersOnGPU(const long elements) {
     long data_size = elements * sizeof(float);
     cl_int status;
-    dOutput = clCreateBuffer(context, CL_MEM_WRITE_ONLY, data_size, nullptr, &status);
+    dOutput = clCreateBuffer(context, CL_MEM_READ_WRITE, data_size, nullptr, &status);
     if (status != CL_SUCCESS) {
         cout << "Error in clCreateBuffer (dOutput)" << endl;
         return -1;
     }
-    dX      = clCreateBuffer(context, CL_MEM_READ_WRITE, data_size, nullptr, &status);
+    dX = clCreateBuffer(context, CL_MEM_READ_WRITE, data_size, nullptr, &status);
     if (status != CL_SUCCESS) {
         cout << "Error in clCreateBuffer (dX)" << endl;
         return -1;
@@ -167,21 +166,21 @@ cl_int allocateBuffersOnGPU(long elements) {
         cout << "Error in clCreateBuffer (dWeight)" << endl;
         return -1;
     }
-    dXout = clCreateBuffer(context, CL_MEM_WRITE_ONLY, data_size, nullptr, &status);
+    dXout = clCreateBuffer(context, CL_MEM_READ_WRITE, data_size, nullptr, &status);
     if (status != CL_SUCCESS) {
         cout << "Error in clCreateBuffer (dWeight)" << endl;
         return -1;
     }
     // Matrix
-    dW = clCreateBuffer(context, CL_MEM_WRITE_ONLY, elements * elements * sizeof(float), nullptr, &status);
+    dW = clCreateBuffer(context, CL_MEM_READ_WRITE, elements * elements * sizeof(float), nullptr, &status);
     if (status != CL_SUCCESS) {
-        cout << "Error in clCreateBuffer (dOutput)" << endl;
+        cout << "Error in clCreateBuffer (dW)" << endl;
         return -1;
     }
     return status;
 }
 
-cl_event writeBuffer(cl_mem dVar, float* hostVar, int data_size) {
+cl_event writeBuffer(const cl_mem dVar, const float* hostVar, const int data_size) {
     cl_event writeEvent;
     cl_int status = clEnqueueWriteBuffer(commandQueue, dVar, CL_TRUE, 0, data_size, hostVar, 0, nullptr, &writeEvent);
     if (status != CL_SUCCESS) {
@@ -207,7 +206,7 @@ cl_event runKernel1(cl_kernel kernel, ulong elements) {
     cl_event kernelEvent;
     status = clEnqueueNDRangeKernel(commandQueue, kernel, 1, nullptr, globalWorkSize, localWorkSize, 0, nullptr, &kernelEvent);
     if (status != CL_SUCCESS) {
-        cout << "Error clEnqueueNDRangeKernel: "  << status << endl;
+        cout << "Error clEnqueueNDRangeKernel (kernel 1): "  << status << endl;
         return nullptr;
     }
 
@@ -228,7 +227,7 @@ cl_event runKernel2(cl_kernel kernel, ulong elements, float ss) {
     cl_event kernelEvent;
     status = clEnqueueNDRangeKernel(commandQueue, kernel, 1, nullptr, globalWorkSize, nullptr, 0, nullptr, &kernelEvent);
     if (status != CL_SUCCESS) {
-        cout << "Error clEnqueueNDRangeKernel: "  << status << endl;
+        cout << "Error clEnqueueNDRangeKernel (kernel 2): "  << status << endl;
         return nullptr;
     }
     return kernelEvent;
@@ -250,7 +249,7 @@ cl_event runKernel4(cl_kernel kernel, ulong elements, float max) {
     cl_event kernelEvent;
     status = clEnqueueNDRangeKernel(commandQueue, kernel, 1, nullptr, globalWorkSize, localWorkSize, 0, nullptr, &kernelEvent);
     if (status != CL_SUCCESS) {
-        cout << "Error clEnqueueNDRangeKernel: "  << status << endl;
+        cout << "Error clEnqueueNDRangeKernel (kernel 4): "  << status << endl;
         return nullptr;
     }
     return kernelEvent;
@@ -294,61 +293,68 @@ cl_event runKernel6(cl_kernel kernel, ulong elements) {
     return kernelEvent;
 }
 
-cl_event read(cl_mem devVar, float* hostVar, int data_size, cl_event kernelEvent) {
+cl_event read(const cl_mem dVar, float* hostVar, const int data_size, const cl_event kernelEvent) {
+    if (kernelEvent == nullptr) {
+        cout << "NULL POINTER" << endl;
+    }
     // Read result back from device to host
-    cl_event waitEventsRead[] = {kernelEvent};
+    const cl_event waitEventsRead[] = { kernelEvent };
     cl_event readEvent;
-    clEnqueueReadBuffer(commandQueue, devVar, CL_TRUE, 0, data_size, hostVar, 1, waitEventsRead , &readEvent);
+    cl_int status = clEnqueueReadBuffer(commandQueue, dVar, CL_TRUE, 0, data_size, hostVar, 1, waitEventsRead , &readEvent);
+    if (status != CL_SUCCESS) {
+        cout << "Error in clEnqueueReadBuffer: " << status << endl;
+        return nullptr;
+    }
     return readEvent;
 }
 
 
 void runRmsNorm(long elements, cl_kernel kernel1, cl_kernel kernel2) {
-    long dataSize = elements * sizeof(float);
-    writeBuffer(dOutput, hOutput, dataSize);
-    writeBuffer(dX, hX, dataSize);
+    long data_size = elements * sizeof(float);
+    writeBuffer(dOutput, hOutput, data_size);
+    writeBuffer(dX, hX, data_size);
 
     cl_event kernelEvent = runKernel1(kernel1, elements);
-    read(dOutput, hOutput, dataSize, kernelEvent);
+    read(dOutput, hOutput, data_size, kernelEvent);
 
     int numGroups = elements / WORK_GROUP_SIZE;
-    for (int i = 0; i < numGroups; i++) {
+    for (int i = 1; i < numGroups; i++) {
         hOutput[0] += hOutput[i];
     }
     float ss = hOutput[0] + 1e-5;
     ss = 1.0 / sqrt(ss);
     cout << "SS: " << ss << endl;
 
-    writeBuffer(dOutput, hOutput, dataSize);
-    writeBuffer(dX, hX, dataSize);
-    writeBuffer(dWeight, hWeight, dataSize);
+    writeBuffer(dOutput, hOutput, data_size);
+    writeBuffer(dX, hX, data_size);
+    writeBuffer(dWeight, hWeight, data_size);
 
     kernelEvent = runKernel2(kernel2, elements, ss);
-    read(dOutput, hOutput, dataSize, kernelEvent);
+    read(dOutput, hOutput, data_size, kernelEvent);
 }
 
 void runSoftMax(const long elements, cl_kernel kernel1, cl_kernel kernel2, cl_kernel kernel3) {
-    long dataSize = elements * sizeof(float);
-    writeBuffer(dOutput, hOutput, dataSize);
-    writeBuffer(dX, hX, dataSize);
+    long data_size = elements * sizeof(float);
+    writeBuffer(dOutput, hOutput, data_size);
+    writeBuffer(dX, hX, data_size);
 
     cl_event kernelEvent = runKernel1(kernel1, elements);
-    read(dOutput, hOutput, dataSize, kernelEvent);
+    read(dOutput, hOutput, data_size, kernelEvent);
 
     int numGroups = elements / WORK_GROUP_SIZE;
-    for (int i = 0; i < numGroups; i++) {
+    for (int i = 1; i < numGroups; i++) {
         if (hOutput[0] < hOutput[i]) {
             hOutput[0] = hOutput[i];
         }
     }
     float max = hOutput[0];
 
-    writeBuffer(dOutput, hOutput, dataSize);
-    writeBuffer(dX, hX, dataSize);
-    writeBuffer(dWeight, hWeight, dataSize);
+    writeBuffer(dOutput, hOutput, data_size);
+    writeBuffer(dX, hX, data_size);
+    writeBuffer(dWeight, hWeight, data_size);
 
     kernelEvent = runKernel4(kernel2, elements, max);
-    read(dOutput, hOutput, dataSize, kernelEvent);
+    read(dOutput, hOutput, data_size, kernelEvent);
 
     for (int i = 1; i < numGroups; i++) {
         hOutput[0] += hOutput[i];
@@ -356,16 +362,16 @@ void runSoftMax(const long elements, cl_kernel kernel1, cl_kernel kernel2, cl_ke
     float sum = hOutput[0];
 
     kernelEvent = runKernel5(kernel3, elements, sum);
-    read(dX, hX, dataSize, kernelEvent);
+    read(dX, hX, data_size, kernelEvent);
 }
 
 void runMatMul(const long elements, cl_kernel kernel1) {
-    long dataSize = elements * sizeof(float);
-    writeBuffer(dXout, hXout, dataSize);
-    writeBuffer(dX, hX, dataSize);
+    const long data_size = elements * sizeof(float);
+    writeBuffer(dXout, hXout, data_size);
+    writeBuffer(dX, hX, data_size);
     writeBuffer(dW, hW, sizeof(float) * elements * elements);
     cl_event kernelEvent = runKernel6(kernel1, elements);
-    read(dXout, hXout, dataSize, kernelEvent);
+    read(dXout, hXout, data_size, kernelEvent);
 }
 
 void free(const std::vector<cl_kernel>& kernels, const std::vector<cl_mem>& deviceObjects, const std::vector<void *>& hostObjects) {

@@ -56,10 +56,8 @@ __kernel void softMaxExpAndSum(__global float *partialSums, __global float *x, _
     uint idx = get_global_id(0);
     uint localIdx = get_local_id(0);
     uint groupSize = get_local_size(0);
-    locals[localIdx] = x[idx];
 
-    // x.set(i, TornadoMath.exp(x.get(i) - max_val));
-    locals[idx] = exp(locals[idx] - maxValue);
+    locals[localIdx] = exp(locals[localIdx] - maxValue);
 
     for (int stride = groupSize / 2; stride > 0; stride /= 2) {
         barrier(CLK_LOCAL_MEM_FENCE);
