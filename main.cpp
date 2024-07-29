@@ -254,10 +254,9 @@ cl_event runKernel4(cl_kernel kernel, ulong elements, float max) {
     return kernelEvent;
 }
 
-cl_event runKernel5(cl_kernel kernel, ulong elements, float sums) {
-    cl_int status;
-    status  = clSetKernelArg(kernel, 0, sizeof(cl_mem), &dX);
-    status |= clSetKernelArg(kernel, 1, sizeof(float), &sums);
+cl_event runKernel5(cl_kernel kernel, ulong elements, float sumValue) {
+    cl_int status = clSetKernelArg(kernel, 0, sizeof(cl_mem), &dX);
+    status |= clSetKernelArg(kernel, 1, sizeof(float), &sumValue);
     if (status != CL_SUCCESS) {
         cout << "Error in clSetKernelArg" << endl;
         return nullptr;
@@ -433,8 +432,8 @@ int main(int argc, char** argv) {
     runMatMul(ELEMENTS, kernel6);
 
     // free environment
-    vector<cl_kernel> kernels = { kernel1, kernel2, kernel3, kernel4, kernel5, kernel6};
-    vector<cl_mem> deviceObjects = { dOutput, dX, dXout, dWeight, dW };
+    vector kernels = { kernel1, kernel2, kernel3, kernel4, kernel5, kernel6};
+    vector deviceObjects = { dOutput, dX, dXout, dWeight, dW };
     vector<void *> hostObjects = { hOutput, hX, hWeight, hXout, hW };
     free(kernels, deviceObjects, hostObjects);
 
